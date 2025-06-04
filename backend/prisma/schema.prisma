@@ -1,0 +1,185 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de Caçamba
+model Cacamba {
+  id                    String         @id @default(cuid())
+  numero                String         @unique // Número sequencial de 3 dígitos (001, 002, etc.)
+  status                StatusCacamba  @default(DISPONIVEL)
+  localizacaoAtual      String         // Endereço ou "Pátio" ou nome da destinadora
+  dataUltimaMovimentacao DateTime      @default(now())
+  observacoes           String?        @db.Text
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  // Relacionamentos
+  movimentacoes         Movimentacao[] // Uma caçamba tem muitas movimentações
+  locacoes              Locacao[]      // Uma caçamba pode estar em várias locações (histórico)
+}
+
+// Modelo de Cliente
+model Cliente {
+  id                String      @id @default(cuid())
+  tipo              TipoCliente
+  documento         String      @unique // CPF ou CNPJ
+  nomeCompleto      String?     // Para PF
+  razaoSocial       String?     // Para PJ
+  telefone          String
+  email             String?
+  cep               String
+  enderecoCompleto  String
+  referencia        String?
+  metodoPagamento   String
+  contatoNome       String?     // Para PJ
+  contatoTelefone   String?     // Para PJ
+  contatoEmail      String?     // Para PJ
+  enderecoEntrega   String?     // Para PJ, quando diferente do endereço principal
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relacionamentos
+  locacoes          Locacao[]   // Um cliente tem muitas locações
+}
+
+// Modelo de Locação
+model Locacao {
+  id                String        @id @default(cuid())
+  clienteId         String
+  cacambaId         String
+  dataInicio        DateTime
+  dataFimPrevista   DateTime
+  dataFimReal       DateTime?
+  enderecoEntrega   String
+  status            StatusLocacao @default(AGENDADA)
+  valor             Decimal       @db.Decimal(10, 2)
+  tipoResiduo       TipoResiduo
+  taxaAdicional     Decimal?      @db.Decimal(10, 2) // Para resíduos misturados em PF
+  diasExtras        Int?          // Para PJ
+  valorDiaExtra     Decimal?      @db.Decimal(10, 2) // Para PJ
+  contaAzulVendaId  String?       // ID da venda no Conta Azul
+  observacoes       String?       @db.Text
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relacionamentos
+  cliente           Cliente       @relation(fields: [clienteId], references: [id])
+  cacamba           Cacamba       @relation(fields: [cacambaId], references: [id])
+  movimentacoes     Movimentacao[] // Uma locação tem muitas movimentações
+}
+
+// Modelo de Movimentação
+model Movimentacao {
+  id                String           @id @default(cuid())
+  cacambaId         String
+  locacaoId         String?          // Opcional, pode ser nulo para movimentações internas
+  tipo              TipoMovimentacao
+  dataHora          DateTime         @default(now())
+  origem            String           // Local de onde a caçamba saiu
+  destino           String           // Local para onde a caçamba foi
+  motorista         String
+  destinadoraId     String?          // Quando aplicável
+  observacoes       String?          @db.Text
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Relacionamentos
+  cacamba           Cacamba         @relation(fields: [cacambaId], references: [id])
+  locacao           Locacao?        @relation(fields: [locacaoId], references: [id])
+  destinadora       Destinadora?    @relation(fields: [destinadoraId], references: [id])
+  registradoPor     Usuario?        @relation(fields: [registradoPorId], references: [id])
+  registradoPorId   String?
+}
+
+// Modelo de Destinadora
+model Destinadora {
+  id                  String        @id @default(cuid())
+  nome                String
+  tiposResiduosAceitos TipoResiduo[]
+  endereco            String
+  contato             String
+  certificados        Certificado[]
+  observacoes         String?       @db.Text
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relacionamentos
+  movimentacoes       Movimentacao[]
+}
+
+// Modelo de Certificado
+model Certificado {
+  id            String      @id @default(cuid())
+  destinadoraId String
+  nome          String
+  arquivo       String      // Caminho do arquivo
+  dataEmissao   DateTime
+  dataValidade  DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relacionamentos
+  destinadora   Destinadora @relation(fields: [destinadoraId], references: [id])
+}
+
+// Modelo de Usuário
+model Usuario {
+  id            String      @id @default(cuid())
+  nome          String
+  email         String      @unique
+  senha         String      // Hash da senha
+  tipo          TipoUsuario @default(OPERACIONAL)
+  ativo         Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relacionamentos
+  movimentacoes Movimentacao[]
+}
+
+// Enums
+enum StatusCacamba {
+  DISPONIVEL
+  EM_USO
+  EM_MANUTENCAO
+}
+
+enum TipoCliente {
+  PF
+  PJ
+}
+
+enum StatusLocacao {
+  AGENDADA
+  EM_ANDAMENTO
+  FINALIZADA
+  CANCELADA
+}
+
+enum TipoResiduo {
+  CLASSE_A
+  MADEIRA
+  MISTO
+  OUTROS
+}
+
+enum TipoMovimentacao {
+  COLOCACAO
+  RETIRADA
+  TROCA
+  MOVIMENTACAO_INTERNA
+}
+
+enum TipoUsuario {
+  ADMINISTRADOR
+  GERENTE
+  OPERACIONAL
+}
