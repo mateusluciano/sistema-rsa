@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
-import { prisma } from '../index';
+type Handler = (req: Request, res: Response) => Promise<Response>;
+import { prisma } from '../prisma';
+
 
 // Obter todas as caçambas
-export const getAllCacambas = async (req: Request, res: Response) => {
+export const getAllCacambas: Handler = async (req: Request, res: Response) => {
   try {
     const cacambas = await prisma.cacamba.findMany({
       orderBy: {
@@ -18,7 +20,7 @@ export const getAllCacambas = async (req: Request, res: Response) => {
 };
 
 // Obter caçamba por ID
-export const getCacambaById = async (req: Request, res: Response) => {
+export const getCacambaById: Handler = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -52,7 +54,7 @@ export const getCacambaById = async (req: Request, res: Response) => {
 };
 
 // Criar nova caçamba
-export const createCacamba = async (req: Request, res: Response) => {
+export const createCacamba: Handler = async (req: Request, res: Response) => {
   try {
     const { numero, status, localizacaoAtual, observacoes } = req.body;
     
@@ -82,7 +84,7 @@ export const createCacamba = async (req: Request, res: Response) => {
 };
 
 // Atualizar caçamba
-export const updateCacamba = async (req: Request, res: Response) => {
+export const updateCacamba: Handler = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status, localizacaoAtual, observacoes } = req.body;
@@ -113,7 +115,7 @@ export const updateCacamba = async (req: Request, res: Response) => {
 };
 
 // Excluir caçamba
-export const deleteCacamba = async (req: Request, res: Response) => {
+export const deleteCacamba: Handler = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -149,7 +151,7 @@ export const deleteCacamba = async (req: Request, res: Response) => {
 };
 
 // Buscar caçambas por status
-export const getCacambasByStatus = async (req: Request, res: Response) => {
+export const getCacambasByStatus: Handler = async (req: Request, res: Response) => {
   try {
     const { status } = req.query;
     
