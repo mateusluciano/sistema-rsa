@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
-type Handler = (req: Request, res: Response) => Promise<Response>;
-import { prisma } from '../prisma';
 
+// Corrigido: alterado o tipo de retorno para Promise<void> em vez de Promise<Response>
+type Handler = (req: Request, res: Response) => Promise<void>;
+
+import { prisma } from '../prisma';
 
 // Obter todas as caçambas
 export const getAllCacambas: Handler = async (req: Request, res: Response) => {
@@ -11,11 +13,11 @@ export const getAllCacambas: Handler = async (req: Request, res: Response) => {
         numero: 'asc',
       },
     });
-    
-    return res.status(200).json(cacambas);
+    // Corrigido: removido o "return" antes de res.status()
+    res.status(200).json(cacambas);
   } catch (error) {
     console.error('Erro ao buscar caçambas:', error);
-    return res.status(500).json({ error: 'Erro ao buscar caçambas' });
+    res.status(500).json({ error: 'Erro ao buscar caçambas' });
   }
 };
 
@@ -23,7 +25,6 @@ export const getAllCacambas: Handler = async (req: Request, res: Response) => {
 export const getCacambaById: Handler = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
     const cacamba = await prisma.cacamba.findUnique({
       where: { id },
       include: {
@@ -41,15 +42,17 @@ export const getCacambaById: Handler = async (req: Request, res: Response) => {
         },
       },
     });
-    
+
     if (!cacamba) {
-      return res.status(404).json({ error: 'Caçamba não encontrada' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(404).json({ error: 'Caçamba não encontrada' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
-    return res.status(200).json(cacamba);
+
+    res.status(200).json(cacamba);
   } catch (error) {
     console.error('Erro ao buscar caçamba:', error);
-    return res.status(500).json({ error: 'Erro ao buscar caçamba' });
+    res.status(500).json({ error: 'Erro ao buscar caçamba' });
   }
 };
 
@@ -57,16 +60,18 @@ export const getCacambaById: Handler = async (req: Request, res: Response) => {
 export const createCacamba: Handler = async (req: Request, res: Response) => {
   try {
     const { numero, status, localizacaoAtual, observacoes } = req.body;
-    
+
     // Verificar se o número já existe
     const existingCacamba = await prisma.cacamba.findUnique({
       where: { numero },
     });
-    
+
     if (existingCacamba) {
-      return res.status(400).json({ error: 'Já existe uma caçamba com este número' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(400).json({ error: 'Já existe uma caçamba com este número' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
+
     const newCacamba = await prisma.cacamba.create({
       data: {
         numero,
@@ -75,11 +80,11 @@ export const createCacamba: Handler = async (req: Request, res: Response) => {
         observacoes,
       },
     });
-    
-    return res.status(201).json(newCacamba);
+
+    res.status(201).json(newCacamba);
   } catch (error) {
     console.error('Erro ao criar caçamba:', error);
-    return res.status(500).json({ error: 'Erro ao criar caçamba' });
+    res.status(500).json({ error: 'Erro ao criar caçamba' });
   }
 };
 
@@ -88,15 +93,17 @@ export const updateCacamba: Handler = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status, localizacaoAtual, observacoes } = req.body;
-    
+
     const cacamba = await prisma.cacamba.findUnique({
       where: { id },
     });
-    
+
     if (!cacamba) {
-      return res.status(404).json({ error: 'Caçamba não encontrada' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(404).json({ error: 'Caçamba não encontrada' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
+
     const updatedCacamba = await prisma.cacamba.update({
       where: { id },
       data: {
@@ -106,11 +113,11 @@ export const updateCacamba: Handler = async (req: Request, res: Response) => {
         dataUltimaMovimentacao: new Date(),
       },
     });
-    
-    return res.status(200).json(updatedCacamba);
+
+    res.status(200).json(updatedCacamba);
   } catch (error) {
     console.error('Erro ao atualizar caçamba:', error);
-    return res.status(500).json({ error: 'Erro ao atualizar caçamba' });
+    res.status(500).json({ error: 'Erro ao atualizar caçamba' });
   }
 };
 
@@ -118,7 +125,7 @@ export const updateCacamba: Handler = async (req: Request, res: Response) => {
 export const deleteCacamba: Handler = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     // Verificar se a caçamba existe
     const cacamba = await prisma.cacamba.findUnique({
       where: { id },
@@ -127,26 +134,28 @@ export const deleteCacamba: Handler = async (req: Request, res: Response) => {
         movimentacoes: true,
       },
     });
-    
+
     if (!cacamba) {
-      return res.status(404).json({ error: 'Caçamba não encontrada' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(404).json({ error: 'Caçamba não encontrada' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
+
     // Verificar se a caçamba possui locações ou movimentações
     if (cacamba.locacoes.length > 0 || cacamba.movimentacoes.length > 0) {
-      return res.status(400).json({ 
-        error: 'Não é possível excluir a caçamba pois ela possui locações ou movimentações associadas' 
-      });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(400).json({ error: 'Não é possível excluir a caçamba pois ela possui locações ou movimentações associadas' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
+
     await prisma.cacamba.delete({
       where: { id },
     });
-    
-    return res.status(200).json({ message: 'Caçamba excluída com sucesso' });
+
+    res.status(200).json({ message: 'Caçamba excluída com sucesso' });
   } catch (error) {
     console.error('Erro ao excluir caçamba:', error);
-    return res.status(500).json({ error: 'Erro ao excluir caçamba' });
+    res.status(500).json({ error: 'Erro ao excluir caçamba' });
   }
 };
 
@@ -154,11 +163,13 @@ export const deleteCacamba: Handler = async (req: Request, res: Response) => {
 export const getCacambasByStatus: Handler = async (req: Request, res: Response) => {
   try {
     const { status } = req.query;
-    
+
     if (!status || !['DISPONIVEL', 'EM_USO', 'EM_MANUTENCAO'].includes(status as string)) {
-      return res.status(400).json({ error: 'Status inválido' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(400).json({ error: 'Status inválido' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
+
     const cacambas = await prisma.cacamba.findMany({
       where: {
         status: status as any,
@@ -167,10 +178,10 @@ export const getCacambasByStatus: Handler = async (req: Request, res: Response) 
         numero: 'asc',
       },
     });
-    
-    return res.status(200).json(cacambas);
+
+    res.status(200).json(cacambas);
   } catch (error) {
     console.error('Erro ao buscar caçambas por status:', error);
-    return res.status(500).json({ error: 'Erro ao buscar caçambas por status' });
+    res.status(500).json({ error: 'Erro ao buscar caçambas por status' });
   }
 };

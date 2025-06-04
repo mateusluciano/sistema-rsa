@@ -1,8 +1,12 @@
 import { Request, Response } from 'express';
+
+// Corrigido: definido o tipo Handler para retornar Promise<void>
+type Handler = (req: Request, res: Response) => Promise<void>;
+
 import { prisma } from '../index';
 
 // Obter todas as locações
-export const getAllLocacoes = async (req: Request, res: Response) => {
+export const getAllLocacoes: Handler = async (req: Request, res: Response) => {
   try {
     const locacoes = await prisma.locacao.findMany({
       orderBy: {
@@ -13,19 +17,18 @@ export const getAllLocacoes = async (req: Request, res: Response) => {
         cacamba: true,
       },
     });
-    
-    return res.status(200).json(locacoes);
+    // Corrigido: removido o "return" antes de res.status()
+    res.status(200).json(locacoes);
   } catch (error) {
     console.error('Erro ao buscar locações:', error);
-    return res.status(500).json({ error: 'Erro ao buscar locações' });
+    res.status(500).json({ error: 'Erro ao buscar locações' });
   }
 };
 
 // Obter locação por ID
-export const getLocacaoById = async (req: Request, res: Response) => {
+export const getLocacaoById: Handler = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
     const locacao = await prisma.locacao.findUnique({
       where: { id },
       include: {
@@ -41,60 +44,68 @@ export const getLocacaoById = async (req: Request, res: Response) => {
         },
       },
     });
-    
+
     if (!locacao) {
-      return res.status(404).json({ error: 'Locação não encontrada' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(404).json({ error: 'Locação não encontrada' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
-    return res.status(200).json(locacao);
+
+    res.status(200).json(locacao);
   } catch (error) {
     console.error('Erro ao buscar locação:', error);
-    return res.status(500).json({ error: 'Erro ao buscar locação' });
+    res.status(500).json({ error: 'Erro ao buscar locação' });
   }
 };
 
 // Criar nova locação
-export const createLocacao = async (req: Request, res: Response) => {
+export const createLocacao: Handler = async (req: Request, res: Response) => {
   try {
-    const { 
-      clienteId, 
-      cacambaId, 
-      dataInicio, 
-      enderecoEntrega, 
-      valor, 
+    const {
+      clienteId,
+      cacambaId,
+      dataInicio,
+      enderecoEntrega,
+      valor,
       tipoResiduo,
       taxaAdicional,
       diasExtras,
       valorDiaExtra,
       observacoes
     } = req.body;
-    
+
     // Verificar se o cliente existe
     const cliente = await prisma.cliente.findUnique({
       where: { id: clienteId },
     });
-    
+
     if (!cliente) {
-      return res.status(400).json({ error: 'Cliente não encontrado' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(400).json({ error: 'Cliente não encontrado' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
+
     // Verificar se a caçamba existe e está disponível
     const cacamba = await prisma.cacamba.findUnique({
       where: { id: cacambaId },
     });
-    
+
     if (!cacamba) {
-      return res.status(400).json({ error: 'Caçamba não encontrada' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(400).json({ error: 'Caçamba não encontrada' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
+
     if (cacamba.status !== 'DISPONIVEL') {
-      return res.status(400).json({ error: 'Caçamba não está disponível' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(400).json({ error: 'Caçamba não está disponível' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
+
     // Calcular data fim prevista com base no tipo de cliente
     const dataInicioObj = new Date(dataInicio);
     let dataFimPrevista = new Date(dataInicioObj);
-    
+
     if (cliente.tipo === 'PF') {
       // Para PF: 4 dias úteis (sem contar domingo)
       let diasAdicionados = 0;
@@ -105,7 +116,7 @@ export const createLocacao = async (req: Request, res: Response) => {
           diasAdicionados++;
         }
       }
-      
+
       // Se terminar no sábado, ajustar para segunda-feira
       if (dataFimPrevista.getDay() === 6) {
         dataFimPrevista.setDate(dataFimPrevista.getDate() + 2);
@@ -114,7 +125,7 @@ export const createLocacao = async (req: Request, res: Response) => {
       // Para PJ: 7 dias corridos
       dataFimPrevista.setDate(dataFimPrevista.getDate() + 7);
     }
-    
+
     // Criar a locação
     const newLocacao = await prisma.locacao.create({
       data: {
@@ -132,7 +143,7 @@ export const createLocacao = async (req: Request, res: Response) => {
         observacoes,
       },
     });
-    
+
     // Atualizar status da caçamba
     await prisma.cacamba.update({
       where: { id: cacambaId },
@@ -142,39 +153,41 @@ export const createLocacao = async (req: Request, res: Response) => {
         dataUltimaMovimentacao: new Date(),
       },
     });
-    
-    return res.status(201).json(newLocacao);
+
+    res.status(201).json(newLocacao);
   } catch (error) {
     console.error('Erro ao criar locação:', error);
-    return res.status(500).json({ error: 'Erro ao criar locação' });
+    res.status(500).json({ error: 'Erro ao criar locação' });
   }
 };
 
 // Atualizar locação
-export const updateLocacao = async (req: Request, res: Response) => {
+export const updateLocacao: Handler = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { 
-      status, 
-      dataFimReal, 
-      taxaAdicional, 
-      diasExtras, 
+    const {
+      status,
+      dataFimReal,
+      taxaAdicional,
+      diasExtras,
       valorDiaExtra,
       contaAzulVendaId,
       observacoes
     } = req.body;
-    
+
     const locacao = await prisma.locacao.findUnique({
       where: { id },
       include: {
         cacamba: true,
       },
     });
-    
+
     if (!locacao) {
-      return res.status(404).json({ error: 'Locação não encontrada' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(404).json({ error: 'Locação não encontrada' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
+
     // Atualizar a locação
     const updatedLocacao = await prisma.locacao.update({
       where: { id },
@@ -188,7 +201,7 @@ export const updateLocacao = async (req: Request, res: Response) => {
         observacoes: observacoes !== undefined ? observacoes : locacao.observacoes,
       },
     });
-    
+
     // Se a locação foi finalizada, atualizar status da caçamba para disponível
     if (status === 'FINALIZADA' && locacao.status !== 'FINALIZADA') {
       await prisma.cacamba.update({
@@ -200,23 +213,25 @@ export const updateLocacao = async (req: Request, res: Response) => {
         },
       });
     }
-    
-    return res.status(200).json(updatedLocacao);
+
+    res.status(200).json(updatedLocacao);
   } catch (error) {
     console.error('Erro ao atualizar locação:', error);
-    return res.status(500).json({ error: 'Erro ao atualizar locação' });
+    res.status(500).json({ error: 'Erro ao atualizar locação' });
   }
 };
 
 // Buscar locações por status
-export const getLocacoesByStatus = async (req: Request, res: Response) => {
+export const getLocacoesByStatus: Handler = async (req: Request, res: Response) => {
   try {
     const { status } = req.query;
-    
+
     if (!status || !['AGENDADA', 'EM_ANDAMENTO', 'FINALIZADA', 'CANCELADA'].includes(status as string)) {
-      return res.status(400).json({ error: 'Status inválido' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(400).json({ error: 'Status inválido' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
+
     const locacoes = await prisma.locacao.findMany({
       where: {
         status: status as any,
@@ -229,19 +244,18 @@ export const getLocacoesByStatus = async (req: Request, res: Response) => {
         dataInicio: 'desc',
       },
     });
-    
-    return res.status(200).json(locacoes);
+
+    res.status(200).json(locacoes);
   } catch (error) {
     console.error('Erro ao buscar locações por status:', error);
-    return res.status(500).json({ error: 'Erro ao buscar locações por status' });
+    res.status(500).json({ error: 'Erro ao buscar locações por status' });
   }
 };
 
 // Buscar locações por cliente
-export const getLocacoesByCliente = async (req: Request, res: Response) => {
+export const getLocacoesByCliente: Handler = async (req: Request, res: Response) => {
   try {
     const { clienteId } = req.params;
-    
     const locacoes = await prisma.locacao.findMany({
       where: {
         clienteId,
@@ -253,37 +267,39 @@ export const getLocacoesByCliente = async (req: Request, res: Response) => {
         dataInicio: 'desc',
       },
     });
-    
-    return res.status(200).json(locacoes);
+
+    res.status(200).json(locacoes);
   } catch (error) {
     console.error('Erro ao buscar locações por cliente:', error);
-    return res.status(500).json({ error: 'Erro ao buscar locações por cliente' });
+    res.status(500).json({ error: 'Erro ao buscar locações por cliente' });
   }
 };
 
 // Registrar movimentação de caçamba
-export const registrarMovimentacao = async (req: Request, res: Response) => {
+export const registrarMovimentacao: Handler = async (req: Request, res: Response) => {
   try {
-    const { 
-      cacambaId, 
-      locacaoId, 
-      tipo, 
-      origem, 
-      destino, 
-      motorista, 
-      destinadoraId, 
-      observacoes 
+    const {
+      cacambaId,
+      locacaoId,
+      tipo,
+      origem,
+      destino,
+      motorista,
+      destinadoraId,
+      observacoes
     } = req.body;
-    
+
     // Verificar se a caçamba existe
     const cacamba = await prisma.cacamba.findUnique({
       where: { id: cacambaId },
     });
-    
+
     if (!cacamba) {
-      return res.status(400).json({ error: 'Caçamba não encontrada' });
+      // Corrigido: removido o "return" antes de res.status()
+      res.status(400).json({ error: 'Caçamba não encontrada' });
+      return; // Adicionado return para evitar execução adicional
     }
-    
+
     // Criar a movimentação
     const newMovimentacao = await prisma.movimentacao.create({
       data: {
@@ -297,7 +313,7 @@ export const registrarMovimentacao = async (req: Request, res: Response) => {
         observacoes,
       },
     });
-    
+
     // Atualizar localização atual da caçamba
     await prisma.cacamba.update({
       where: { id: cacambaId },
@@ -307,7 +323,7 @@ export const registrarMovimentacao = async (req: Request, res: Response) => {
         status: tipo === 'RETIRADA' ? 'DISPONIVEL' : (tipo === 'COLOCACAO' ? 'EM_USO' : cacamba.status),
       },
     });
-    
+
     // Se for uma colocação, atualizar status da locação para EM_ANDAMENTO
     if (tipo === 'COLOCACAO' && locacaoId) {
       await prisma.locacao.update({
@@ -317,7 +333,7 @@ export const registrarMovimentacao = async (req: Request, res: Response) => {
         },
       });
     }
-    
+
     // Se for uma retirada, atualizar status da locação para FINALIZADA e registrar data fim real
     if (tipo === 'RETIRADA' && locacaoId) {
       await prisma.locacao.update({
@@ -328,10 +344,10 @@ export const registrarMovimentacao = async (req: Request, res: Response) => {
         },
       });
     }
-    
-    return res.status(201).json(newMovimentacao);
+
+    res.status(201).json(newMovimentacao);
   } catch (error) {
     console.error('Erro ao registrar movimentação:', error);
-    return res.status(500).json({ error: 'Erro ao registrar movimentação' });
+    res.status(500).json({ error: 'Erro ao registrar movimentação' });
   }
 };
